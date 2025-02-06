@@ -1,4 +1,5 @@
 from graphviz import Digraph
+import math
 
 def trace(root):
     nodes, edges =  set(), set()
@@ -16,7 +17,7 @@ def draw_dot(root):
     nodes, edges = trace(root)
     for n in nodes:
         uid = str(id(n))
-        dot.node(name = uid, label="{ data %.4f }" % (n.data, ), shape='record')
+        dot.node(name = uid, label="{ %s | data %.4f | grad %.4f}" % (n.label, n.data, n.grad), shape='record')
         if n._op:
             dot.node(name = uid + n._op, label = n._op)
             dot.edge(uid + n._op, uid)
@@ -27,17 +28,45 @@ def draw_dot(root):
 
 class Value:
 
-    def __init__(self, data, _children=(), _op=''):
+    def __init__(self, data, _children=(), _op='', label=''):
         self.data = data
+        self.grad = 0.0
+        self._backward = lambda: None
         self._prev = set(_children)
         self._op = _op
+        self.label = label
 
     def __repr__(self):
         return f"Value(data={self.data})"
     
     def __add__(self, other):
-        return Value(self.data + other.data, (self, other), '+')
+        out =  Value(self.data + other.data, (self, other), '+')
+
+        def _backward():
+            self.grad = 1.0 * out.grad
+            other.grad = 1.0 * out.grad
+        out._backward = _backward
+
+        return out
     
     def __mul__(self, other):
-        return Value(self.data * other.data, (self, other), '*')
+        out = Value(self.data * other.data, (self, other), '*')
+
+        def _backward():
+            self.grad = other.data * out.grad
+            other.grad = self.data * out.grad
+        out._backward = _backward
+        
+        return out
+
+    def  tanh(self):
+        x = self.data
+        t = (math.exp(2*x) - 1)/(math.exp(2*x)+1)
+        out =  Value(t, (self, ), 'tanh')
+
+        def _backward():
+            self.grad = (1 - math.exp(t)) * out.grad
+        out._backward = _backward
+       
+        return out
 
