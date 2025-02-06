@@ -2,7 +2,7 @@ from graphviz import Digraph
 import random
 import math
 
-def trace(root):
+def _trace(root):
     nodes, edges =  set(), set()
     def build(v):
         if v not in nodes:
@@ -15,7 +15,7 @@ def trace(root):
 
 def draw_dot(root):
     dot = Digraph(format='svg', graph_attr={'rankdir':'LR'})
-    nodes, edges = trace(root)
+    nodes, edges = _trace(root)
     for n in nodes:
         uid = str(id(n))
         dot.node(name = uid, label="{ %s | data %.4f | grad %.4f}" % (n.label, n.data, n.grad), shape='record')
@@ -57,6 +57,9 @@ class Value:
     def __neg__(self):
         return self * -1
     
+    def __radd__(self, other):
+        return self + other
+    
     def __sub__(self, other):
         return self + (-other)
     
@@ -68,6 +71,9 @@ class Value:
     
     def __truediv__(self, other):
         return self * other**-1
+    
+    def __rtruediv__(self, other):
+        return other * self**-1
     
     def __mul__(self, other):
         other = other if isinstance(other, Value) else Value(other)
@@ -81,12 +87,12 @@ class Value:
         return out
     
     def __pow__(self, other):
-        assert(isinstance(other, (int, float)))
+        assert isinstance(other, (int, float))
         out = Value(self.data**other, (self, ), f'**{other}')
 
         def _backward():
-            self.grad += (other*self.data**(other-1)) * out.grad
-        self._backward = _backward
+            self.grad += (other * self.data**(other-1)) * out.grad
+        out._backward = _backward
 
         return out
     
@@ -119,7 +125,6 @@ class Value:
             if v not in visited:
                 visited.add(v)
                 for child in v._prev:
-                    print(child)
                     build_topo(child)
                 topo.append(v)
         build_topo(self)
