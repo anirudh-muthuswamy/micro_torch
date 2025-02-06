@@ -61,12 +61,28 @@ class Value:
 
     def  tanh(self):
         x = self.data
-        t = (math.exp(2*x) - 1)/(math.exp(2*x)+1)
+        t = (math.exp(2*x) - 1)/(math.exp(2*x) + 1)
         out =  Value(t, (self, ), 'tanh')
 
         def _backward():
-            self.grad = (1 - math.exp(t)) * out.grad
+            self.grad = (1 - t**2) * out.grad
         out._backward = _backward
        
         return out
+    
+    def backward(self):
+
+        topo = []
+        visited = set()
+        def build_topo(v):
+            if v not in visited:
+                visited.add(v)
+                for child in v._prev:
+                    build_topo(child)
+                topo.append(v)
+        build_topo(self)
+
+        self.grad = 1.0
+        for node in reversed(topo):
+            node._backward()
 
