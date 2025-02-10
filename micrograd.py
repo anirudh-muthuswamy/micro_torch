@@ -1,5 +1,5 @@
 from graphviz import Digraph
-import math
+import numpy as np
 
 def _trace(root):
     nodes, edges =  set(), set()
@@ -29,10 +29,10 @@ def draw_dot(root):
 class Value:
 
     def __init__(self, data, _children=(), _op='', label=''):
-        self.data = data
-        self.grad = 0.0
+        self.data = np.float64(data)
+        self.grad = np.float64(0.0)
         self._backward = lambda: None
-        self._prev = set(_children)
+        self._prev = np.unique(np.array(_children))
         self._op = _op
         self.label = label
 
@@ -74,6 +74,27 @@ class Value:
     def __rtruediv__(self, other):
         return other * self**-1
     
+    def __hash__(self):
+        return id(self)
+    
+    def __lt__(self, other):  # Less than
+        return self.data < (other.data if isinstance(other, Value) else other)
+
+    def __le__(self, other):  # Less than or equal
+        return self.data <= (other.data if isinstance(other, Value) else other)
+
+    def __gt__(self, other):  # Greater than
+        return self.data > (other.data if isinstance(other, Value) else other)
+
+    def __ge__(self, other):  # Greater than or equal
+        return self.data >= (other.data if isinstance(other, Value) else other)
+
+    def __eq__(self, other):  # Equal to
+        return self.data == (other.data if isinstance(other, Value) else other)
+
+    def __ne__(self, other):  # Not equal to
+        return self.data != (other.data if isinstance(other, Value) else other)
+    
     def __mul__(self, other):
         other = other if isinstance(other, Value) else Value(other)
         out = Value(self.data * other.data, (self, other), '*')
@@ -97,7 +118,7 @@ class Value:
     
     def exp(self):
         x = self.data
-        out = Value(math.exp(x), (self, ), 'exp')
+        out = Value(np.exp(x), (self, ), 'exp')
 
         def _backward():
             self.grad += out.data * out.grad
@@ -107,7 +128,7 @@ class Value:
 
     def  tanh(self):
         x = self.data
-        t = (math.exp(2*x) - 1)/(math.exp(2*x) + 1)
+        t = (np.exp(2*x) - 1)/(np.exp(2*x) + 1)
         out =  Value(t, (self, ), 'tanh')
 
         def _backward():
